@@ -51,6 +51,7 @@ type config struct {
 	lineFormat           format
 	dropSingleKey        bool
 	labelMap             map[string]interface{}
+	customFieldExists    []string
 }
 
 func parseConfig(cfg ConfigGetter) (*config, error) {
@@ -165,6 +166,15 @@ func parseConfig(cfg ConfigGetter) (*config, error) {
 		res.autoKubernetesLabels = true
 	default:
 		return nil, fmt.Errorf("invalid boolean AutoKubernetesLabels: %v", autoKubernetesLabels)
+	}
+
+	customFieldExists := cfg.Get("CustomFieldExists")
+	if customFieldExists != "" {
+		if len(strings.Split(customFieldExists, ",")) >= 2 {
+			res.customFieldExists = strings.Split(customFieldExists, ",")
+		} else {
+			return nil, fmt.Errorf("invalid format CustomFieldExists. Expecting label_name,field1,filed2.. : %v", customFieldExists)
+		}
 	}
 
 	removeKey := cfg.Get("RemoveKeys")

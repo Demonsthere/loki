@@ -42,11 +42,33 @@ func newPlugin(cfg *config, logger log.Logger) (*loki, error) {
 	}, nil
 }
 
+func addCustomLabel(records map[string]interface{}, customFields []string) error {
+	custom := make(map[string]interface{})
+	log, ok := records["log"]
+	if !ok {
+		return errors.New("log field not found, cannot extract custom data")
+	}
+	l := fmt.Sprintf("%v", log)
+	for _, v := range customFields[1:] {
+		if strings.Contains(l, v) {
+			custom[customFields[0]] = v
+		}
+	}
+	records["custom"] = custom
+	return nil
+}
+
 // sendRecord send fluentbit records to loki as an entry.
 func (l *loki) sendRecord(r map[interface{}]interface{}, ts time.Time) error {
 	records := toStringMap(r)
 	level.Debug(l.logger).Log("msg", "processing records", "records", fmt.Sprintf("%+v", records))
 	lbs := model.LabelSet{}
+	if len(l.cfg.customFieldExists) > 0 {
+		err := addCustomLabel(records, l.cfg.customFieldExists)
+		if err != nil {
+			level.Error(l.logger).Log("msg", err.Error(), "records", fmt.Sprintf("%+v", records))
+		}
+	}
 	if l.cfg.autoKubernetesLabels {
 		err := autoLabels(records, lbs)
 		if err != nil {
